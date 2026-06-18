@@ -162,10 +162,10 @@ def extract_items_from_html(html: str, url: str = "") -> list[dict]:
 
     items: list[dict] = []
     patterns = [
-        r'href=["\'](/[^"\']+/[a-z0-9-]{5,}[^"\']*)["\']',
-        r'href=["\'](/[^"\']*detail[^"\']*)["\']',
-        r'href=["\'](/[^"\']*item[^"\']*)["\']',
-        r'href=["\'](/[^"\']*product[^"\']*)["\']',
+        r'href=["\'](\/[^"\']+/[a-z0-9-]{5,}[^"\']*)["\']',
+        r'href=["\'](\/[^"\']*detail[^"\']*)["\']',
+        r'href=["\'](\/[^"\']*item[^"\']*)["\']',
+        r'href=["\'](\/[^"\']*product[^"\']*)["\']',
     ]
     all_links: list[str] = []
     for pat in patterns:
