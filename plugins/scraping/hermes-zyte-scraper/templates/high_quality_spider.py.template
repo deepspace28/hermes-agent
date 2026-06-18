@@ -97,7 +97,7 @@ class EliteSpider(scrapy.Spider):
             r'href=["\'](/[^"\']{8,}[^"\']*)["\']',
             r'href=["\'](/[^"\']*(?:detail|item|product|listing|profile|company|business)[^"\']*)["\']',
             r'data-href=["\'](/[^"\']{8,}[^"\']*)["\']',
-            r'href=["\'](/[^"\']{6,}[^"\']*)["\'][^>]*class=["\'][^"\']*(?:title|name|link|card)[^"\']*["\']',
+            r'href=["\'](/[^"\']{6,}[^"\']*)["\'][^>]*class=["\'][^"\']*(?:title|name|link|card)["\']*["\']',
         ]
         all_links = []
         for pat in patterns:
@@ -121,7 +121,7 @@ class EliteSpider(scrapy.Spider):
 
         patterns = [
             r'href=["\']([^"\']*page=\d+[^"\']*)["\'][^>]*rel=["\']?next',
-            r'class=["\'][^"\']*(?:next|pagination-next|page-next)[^"\']*["\'][^>]*href=["\']([^"\']+)["\']',
+            r'class=["\'][^"\']*(?:next|pagination-next|page-next)["\']*["\'][^>]*href=["\']([^"\']+)["\']',
             r'aria-label=["\'][^"\']*next[^"\']*["\'][^>]*href=["\']([^"\']+)["\']',
             r'data-page=["\']?next["\']?[^>]*href=["\']([^"\']+)["\']',
             r'href=["\']([^"\']*(?:/page/|&page=|\?page=)\d+[^"\']*)["\']',
