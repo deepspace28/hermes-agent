@@ -365,6 +365,11 @@ _CATEGORY_MERGE: Dict[str, str] = {
     # with the other messaging-platform config (discord) so it isn't an
     # orphan tab of one field.
     "telegram": "discord",
+    # Same story for onboarding: `onboarding.seen` is a nested dict and never
+    # becomes a field, leaving `onboarding.profile_build` alone in its own tab.
+    # It governs what the agent does on the first gateway message, so it sits
+    # with the rest of the agent behaviour config.
+    "onboarding": "agent",
 }
 
 # Display order for tabs — unlisted categories sort alphabetically after these.
