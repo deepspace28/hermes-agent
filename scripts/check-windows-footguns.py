@@ -113,6 +113,51 @@ EXCLUDED_FILES = {
     "CONTRIBUTING.md",
 }
 
+# Top-level Python packages that ``--all`` deliberately skips. Anything else
+# with .py in it must appear in ``all_scan_roots`` — ``tests/scripts/
+# test_footgun_scan_coverage.py`` enforces that, so a new package cannot go
+# unguarded the way ``tui_gateway`` did.
+UNSCANNED_TOP_LEVEL = {
+    # Fixtures exercise these patterns deliberately, behind platform guards.
+    "tests",
+    # 5 pre-existing findings; needs its own cleanup pass before it can be
+    # added without breaking the blocking CI job.
+    "skills",
+    # External, user-authored skills (also in EXCLUDED_DIRS).
+    "optional-skills",
+}
+
+
+def all_scan_roots(repo_root: Path) -> list[Path]:
+    """Paths scanned by ``--all`` — the mode the blocking CI job runs.
+
+    This is an allowlist, so a new top-level package is invisible to ``--all``
+    until it is listed here. ``tui_gateway`` landed in #65895 two months after
+    this checker became blocking, was never added, and accumulated a raw
+    ``os.kill(pid, 0)`` plus a bare ``signal.SIGKILL`` while CI kept reporting
+    "✓ No Windows footguns found".
+    """
+    roots = [
+        repo_root / "hermes_cli",
+        repo_root / "gateway",
+        repo_root / "tools",
+        repo_root / "cron",
+        repo_root / "agent",
+        repo_root / "plugins",
+        repo_root / "scripts",
+        repo_root / "acp_adapter",
+        repo_root / "tui_gateway",
+        repo_root / "providers",
+        # Docs-build scripts. Not shipped, but contributors run them on
+        # Windows too, and the tree is already clean.
+        repo_root / "website",
+    ]
+    roots = [r for r in roots if r.exists()]
+    # Top-level modules (cli.py, run_agent.py, hermes_state.py, ...) are
+    # shipped code too, and were likewise never reached by --all.
+    roots.extend(sorted(repo_root.glob("*.py")))
+    return roots
+
 
 @dataclass
 class Footgun:
@@ -703,18 +748,7 @@ def main(argv: list[str]) -> int:
         return 0
 
     if args.all:
-        # Scan main Python packages + scripts
-        roots = [
-            REPO_ROOT / "hermes_cli",
-            REPO_ROOT / "gateway",
-            REPO_ROOT / "tools",
-            REPO_ROOT / "cron",
-            REPO_ROOT / "agent",
-            REPO_ROOT / "plugins",
-            REPO_ROOT / "scripts",
-            REPO_ROOT / "acp_adapter",
-        ]
-        roots = [r for r in roots if r.exists()]
+        roots = all_scan_roots(REPO_ROOT)
     elif args.diff:
         roots = get_diff_files(args.diff)
     elif args.paths:
