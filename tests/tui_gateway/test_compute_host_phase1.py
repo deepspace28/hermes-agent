@@ -13,6 +13,7 @@ from tui_gateway.compute_host import ComputeHost, _default_workers
 from tui_gateway.host_supervisor import (
     MUTATOR_ROUTE_TABLE,
     HostSupervisor,
+    _pid_alive,
     append_log_record,
 )
 
@@ -84,6 +85,34 @@ def test_append_log_record_single_write_lines(tmp_path):
     assert all(line.endswith("x" * 2000) for line in lines)
 
 
+def test_pid_alive_probe_never_signals_target(monkeypatch):
+    """The liveness probe must not signal the process it is probing.
+
+    ``os.kill(pid, 0)`` is a harmless no-op on POSIX but NOT on Windows:
+    sig=0 collides with ``CTRL_C_EVENT`` at the C level and
+    ``GenerateConsoleCtrlEvent`` delivers it to the target's entire console
+    process group, killing the target and unrelated siblings (bpo-14484).
+
+    This assertion is platform-independent on purpose — the test suite runs
+    on Linux, where reintroducing ``os.kill(pid, 0)`` would otherwise look
+    perfectly healthy right up until it hard-kills a Windows user's shell.
+    """
+    pytest.importorskip("psutil")
+
+    signalled: list[tuple[int, int]] = []
+    real_kill = os.kill
+
+    def _recording_kill(pid, sig, *args, **kwargs):
+        signalled.append((pid, sig))
+        return real_kill(pid, sig, *args, **kwargs)
+
+    monkeypatch.setattr(os, "kill", _recording_kill)
+
+    assert _pid_alive(os.getpid()) is True
+
+    assert signalled == [], f"liveness probe signalled the target: {signalled}"
+
+
 def test_supervisor_startup_reconcile_pid_reuse_guard(tmp_path, monkeypatch):
     registry = tmp_path / "dashboard-compute-host.json"
     registry.write_text(json.dumps({"host_pid": os.getpid(), "boot_id": "stale"}), encoding="utf-8")
@@ -93,10 +122,21 @@ def test_supervisor_startup_reconcile_pid_reuse_guard(tmp_path, monkeypatch):
     monkeypatch.setattr(supervisor, "_pid_matches_compute_host", lambda _pid: False)
     monkeypatch.setattr(supervisor, "_terminate_pid", lambda pid, **_kw: killed.append(pid))
 
+    # The guard below decides this PID must never be signalled — but that
+    # decision happens *after* the liveness probe has already touched it.
+    # Recording raw os.kill traffic closes that hole: asserting only on
+    # _terminate_pid lets a destructive probe slip past the assertion.
+    signalled: list[tuple[int, int]] = []
+    real_kill = os.kill
+    monkeypatch.setattr(
+        os, "kill", lambda pid, sig, *a, **kw: (signalled.append((pid, sig)), real_kill(pid, sig, *a, **kw))[1]
+    )
+
     result = supervisor.reconcile_startup_orphan()
 
     assert result == "pid-reuse-ignored"
     assert killed == []
+    assert signalled == [], f"pid-reuse guard signalled a PID it refused to touch: {signalled}"
     assert not registry.exists()
 
 
