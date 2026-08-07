@@ -13,6 +13,7 @@ from tui_gateway.compute_host import ComputeHost, _default_workers
 from tui_gateway.host_supervisor import (
     MUTATOR_ROUTE_TABLE,
     HostSupervisor,
+    _pid_alive,
     append_log_record,
 )
 
@@ -84,6 +85,53 @@ def test_append_log_record_single_write_lines(tmp_path):
     assert all(line.endswith("x" * 2000) for line in lines)
 
 
+def _record_host_supervisor_kills(monkeypatch) -> list[tuple[int, int]]:
+    """Record only the ``os.kill`` calls made by ``host_supervisor`` itself.
+
+    A blanket recorder cannot express this invariant on POSIX. psutil
+    implements ``pid_exists()`` with ``os.kill(pid, 0)`` there
+    (``psutil._psposix``), and ``gateway.status._pid_exists`` falls back to
+    the same call when psutil is unavailable. Both are correct — psutil uses
+    a native ``OpenProcess`` path on Windows, the platform the footgun
+    applies to — so "nothing anywhere called os.kill" fails on Linux no
+    matter how host_supervisor behaves.
+
+    Attributing each call to its immediate caller keeps the guard meaningful:
+    it fires if and only if ``host_supervisor.py`` reintroduces a direct
+    signal, which is the thing that breaks Windows.
+    """
+    signalled: list[tuple[int, int]] = []
+    real_kill = os.kill
+
+    def _recording_kill(pid, sig, *args, **kwargs):
+        caller = sys._getframe(1).f_code.co_filename
+        if os.path.basename(caller) == "host_supervisor.py":
+            signalled.append((pid, sig))
+        return real_kill(pid, sig, *args, **kwargs)
+
+    monkeypatch.setattr(os, "kill", _recording_kill)
+    return signalled
+
+
+def test_pid_alive_probe_never_signals_target(monkeypatch):
+    """The liveness probe must not signal the process it is probing.
+
+    ``os.kill(pid, 0)`` is a harmless no-op on POSIX but NOT on Windows:
+    sig=0 collides with ``CTRL_C_EVENT`` at the C level and
+    ``GenerateConsoleCtrlEvent`` delivers it to the target's entire console
+    process group, killing the target and unrelated siblings (bpo-14484).
+
+    This assertion is platform-independent on purpose — the test suite runs
+    on Linux, where reintroducing ``os.kill(pid, 0)`` would otherwise look
+    perfectly healthy right up until it hard-kills a Windows user's shell.
+    """
+    signalled = _record_host_supervisor_kills(monkeypatch)
+
+    assert _pid_alive(os.getpid()) is True
+
+    assert signalled == [], f"liveness probe signalled the target: {signalled}"
+
+
 def test_supervisor_startup_reconcile_pid_reuse_guard(tmp_path, monkeypatch):
     registry = tmp_path / "dashboard-compute-host.json"
     registry.write_text(json.dumps({"host_pid": os.getpid(), "boot_id": "stale"}), encoding="utf-8")
@@ -93,10 +141,17 @@ def test_supervisor_startup_reconcile_pid_reuse_guard(tmp_path, monkeypatch):
     monkeypatch.setattr(supervisor, "_pid_matches_compute_host", lambda _pid: False)
     monkeypatch.setattr(supervisor, "_terminate_pid", lambda pid, **_kw: killed.append(pid))
 
+    # The guard below decides this PID must never be signalled — but that
+    # decision happens *after* the liveness probe has already touched it.
+    # Recording host_supervisor's own os.kill traffic closes that hole:
+    # asserting only on _terminate_pid lets a destructive probe slip past.
+    signalled = _record_host_supervisor_kills(monkeypatch)
+
     result = supervisor.reconcile_startup_orphan()
 
     assert result == "pid-reuse-ignored"
     assert killed == []
+    assert signalled == [], f"pid-reuse guard signalled a PID it refused to touch: {signalled}"
     assert not registry.exists()
 
 

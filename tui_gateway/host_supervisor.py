@@ -86,15 +86,34 @@ def _default_registry_path() -> Path:
 
 
 def _pid_alive(pid: int) -> bool:
+    """Return True if a process with ``pid`` is currently alive.
+
+    Delegates to ``gateway.status._pid_exists`` — the canonical,
+    cross-platform, footgun-safe liveness check. Critically this avoids
+    ``os.kill(pid, 0)``, which on Windows is NOT a no-op: it collides with
+    ``CTRL_C_EVENT`` at the C level and hard-kills the target's entire
+    console process group (bpo-14484). ``reconcile_startup_orphan`` probes
+    a PID it has explicitly decided it may not signal, so the probe itself
+    must never be destructive.
+
+    A permission error still counts as alive (the process exists, we just
+    can't touch it); ``psutil.pid_exists`` preserves that. Any other error
+    resolves to False — treat unknown as dead so a stale registry entry
+    never wedges startup.
+    """
     if pid <= 0:
         return False
     try:
-        os.kill(pid, 0)
-        return True
-    except ProcessLookupError:
-        return False
-    except PermissionError:
-        return True
+        from gateway.status import _pid_exists
+
+        return bool(_pid_exists(int(pid)))
+    except Exception:
+        pass
+    # Last-resort fallback if gateway.status is unavailable: psutil directly.
+    try:
+        import psutil  # type: ignore
+
+        return bool(psutil.pid_exists(int(pid)))
     except Exception:
         return False
 
@@ -108,6 +127,16 @@ def _pid_command(pid: int) -> str:
         data = proc_cmdline.read_bytes()
         if data:
             return data.replace(b"\x00", b" ").decode("utf-8", errors="replace")
+    except Exception:
+        pass
+    # Cross-platform path. Neither /proc nor `ps` exists on Windows, so without
+    # this the function returns "" there — which makes is_compute_host_identity()
+    # always False, and reconcile_startup_orphan() therefore always report
+    # "pid-reuse-ignored" and never reap a genuine orphaned compute host.
+    try:
+        import psutil  # type: ignore
+
+        return " ".join(psutil.Process(int(pid)).cmdline() or [])
     except Exception:
         pass
     try:
@@ -544,7 +573,10 @@ class HostSupervisor:
                 return
             time.sleep(0.05)
         try:
-            os.kill(pid, signal.SIGKILL)
+            # signal.SIGKILL does not exist on Windows — referencing it raises
+            # AttributeError, which the broad handler below would swallow, so the
+            # escalation would silently never happen and the host would leak.
+            os.kill(pid, getattr(signal, "SIGKILL", signal.SIGTERM))
         except ProcessLookupError:
             return
         except Exception:
