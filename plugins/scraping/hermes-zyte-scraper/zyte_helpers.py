@@ -17,7 +17,9 @@ SCHEMA_ITEM_KEYS: dict[str, list[str]] = {
 }
 
 
-def infer_schema(url: str | None, schema: str | None = None, auto_schema: bool = True) -> str:
+def infer_schema(
+    url: str | None, schema: str | None = None, auto_schema: bool = True
+) -> str:
     """Pick the best Zyte auto-extract schema for a URL (Zyte: one schema per request)."""
     if not url:
         return schema if schema and schema not in ("", "auto") else "productList"
@@ -29,11 +31,16 @@ def infer_schema(url: str | None, schema: str | None = None, auto_schema: bool =
 
     if "indeed.com" in host or any(x in path for x in ("/jobs", "/job/", "/careers")):
         return "jobPostingNavigation"
-    if any(x in host for x in ("zillow.com", "redfin.com", "realtor.com", "trulia.com")):
+    if any(
+        x in host for x in ("zillow.com", "redfin.com", "realtor.com", "trulia.com")
+    ):
         return "productList"
     if any(x in host for x in ("amazon.", "ebay.", "etsy.", "walmart.", "target.")):
         return "productList"
-    if any(x in host for x in ("news.", "medium.com", "substack.com")) or "/article" in path:
+    if (
+        any(x in host for x in ("news.", "medium.com", "substack.com"))
+        or "/article" in path
+    ):
         return "articleList"
     if "quotes.toscrape.com" in host:
         return "pageContent"
@@ -52,7 +59,9 @@ def parse_auto_extract_items(schema: str, auto_data: dict | list | None) -> list
     if not isinstance(auto_data, dict):
         return []
 
-    for key in SCHEMA_ITEM_KEYS.get(schema, ["items", "products", "articles", "jobPostings"]):
+    for key in SCHEMA_ITEM_KEYS.get(
+        schema, ["items", "products", "articles", "jobPostings"]
+    ):
         value = auto_data.get(key)
         if isinstance(value, list) and value:
             return value
@@ -98,18 +107,16 @@ def parse_zillow_listings_from_html(html: str) -> list[dict]:
         if zpid in seen:
             continue
         seen.add(zpid)
-        items.append(
-            {
-                "zpid": zpid,
-                "url": f"https://www.zillow.com/homedetails/{zpid}_zpid/",
-                "price": price,
-                "name": f"Listing {zpid}",
-            }
-        )
+        items.append({
+            "zpid": zpid,
+            "url": f"https://www.zillow.com/homedetails/{zpid}_zpid/",
+            "price": price,
+            "name": f"Listing {zpid}",
+        })
 
     for match in re.finditer(
         r'href="([^"]*/homedetails/[^"]+_zpid/)"[^>]*>.*?'
-        r'(?:\$[\d,]+|<span[^>]*>[\d,]+</span>)',
+        r"(?:\$[\d,]+|<span[^>]*>[\d,]+</span>)",
         html,
         re.IGNORECASE | re.DOTALL,
     ):
@@ -126,17 +133,17 @@ def parse_zillow_listings_from_html(html: str) -> list[dict]:
         beds_match = re.search(r"(\d+)\s*bd", chunk, re.I)
         baths_match = re.search(r"(\d+)\s*ba", chunk, re.I)
         sqft_match = re.search(r"([\d,]+)\s*sqft", chunk, re.I)
-        items.append(
-            {
-                "zpid": zpid,
-                "url": url,
-                "price": price_match.group(0).replace("$", "").replace(",", "") if price_match else None,
-                "beds": beds_match.group(1) if beds_match else None,
-                "baths": baths_match.group(1) if baths_match else None,
-                "sqft": sqft_match.group(1).replace(",", "") if sqft_match else None,
-                "name": f"Listing {zpid}",
-            }
-        )
+        items.append({
+            "zpid": zpid,
+            "url": url,
+            "price": price_match.group(0).replace("$", "").replace(",", "")
+            if price_match
+            else None,
+            "beds": beds_match.group(1) if beds_match else None,
+            "baths": baths_match.group(1) if baths_match else None,
+            "sqft": sqft_match.group(1).replace(",", "") if sqft_match else None,
+            "name": f"Listing {zpid}",
+        })
 
     for match in re.finditer(r'href="([^"]*/homedetails/[^"]+_zpid/)"', html, re.I):
         url = match.group(1).replace("\\/", "/")
@@ -174,7 +181,9 @@ def extract_items_from_html(html: str, url: str = "") -> list[dict]:
     seen: set[str] = set()
     for link in all_links:
         if link not in seen and len(link) > 6:
-            if any(bad in link for bad in ("bootstrap", ".css", ".js", "login", "signup")):
+            if any(
+                bad in link for bad in ("bootstrap", ".css", ".js", "login", "signup")
+            ):
                 continue
             seen.add(link)
             items.append({"url": link, "name": "General-purpose HTML fallback"})

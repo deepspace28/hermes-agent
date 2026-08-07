@@ -11,7 +11,10 @@ ZYTE_EXTRACT = {
     "parameters": {
         "type": "object",
         "properties": {
-            "url": {"type": "string", "description": "Starting URL (list or detail page)"},
+            "url": {
+                "type": "string",
+                "description": "Starting URL (list or detail page)",
+            },
             "schema": {
                 "type": "string",
                 "description": (
@@ -143,8 +146,16 @@ ZYTE_LIST_JOBS = {
                 "description": "pending, running, finished, or all.",
                 "default": "all",
             },
-            "limit": {"type": "integer", "description": "Max jobs to return.", "default": 20},
-            "offset": {"type": "integer", "description": "Pagination offset.", "default": 0},
+            "limit": {
+                "type": "integer",
+                "description": "Max jobs to return.",
+                "default": 20,
+            },
+            "offset": {
+                "type": "integer",
+                "description": "Pagination offset.",
+                "default": 0,
+            },
             "dry_run": {
                 "type": "boolean",
                 "description": "Return without calling Scrapy Cloud API.",
@@ -175,7 +186,11 @@ ZYTE_GET_RESULTS = {
                 "description": "Max items (0 = all available).",
                 "default": 0,
             },
-            "offset": {"type": "integer", "description": "Pagination offset.", "default": 0},
+            "offset": {
+                "type": "integer",
+                "description": "Pagination offset.",
+                "default": 0,
+            },
             "dry_run": {
                 "type": "boolean",
                 "description": "Return without calling storage API.",
@@ -207,7 +222,11 @@ ZYTE_SCHEDULE = {
                 "description": "Cron expression for recurring runs. Empty = one-time.",
                 "default": "",
             },
-            "units": {"type": "integer", "description": "Scrapy Cloud units.", "default": 1},
+            "units": {
+                "type": "integer",
+                "description": "Scrapy Cloud units.",
+                "default": 1,
+            },
             "tags": {
                 "type": "array",
                 "items": {"type": "string"},

@@ -8,7 +8,12 @@ import time
 from datetime import datetime
 from pathlib import Path
 
-from tenacity import retry, retry_if_exception, stop_after_attempt, wait_exponential_jitter
+from tenacity import (
+    retry,
+    retry_if_exception,
+    stop_after_attempt,
+    wait_exponential_jitter,
+)
 from zyte_api import RequestError
 from zyte_api import ZyteAPI
 
@@ -101,7 +106,9 @@ def _apply_custom_attributes(payload: dict, args: dict, schema: str) -> None:
     custom = build_custom_attributes_payload(args.get("custom_attributes"))
     if custom:
         payload["customAttributes"] = custom
-        payload["customAttributesOptions"] = {"method": args.get("custom_attributes_method", "extract")}
+        payload["customAttributesOptions"] = {
+            "method": args.get("custom_attributes_method", "extract")
+        }
 
 
 def zyte_extract(args: dict, **kwargs) -> str:
@@ -161,10 +168,14 @@ def zyte_extract(args: dict, **kwargs) -> str:
                 page_result["extraction_error"] = str(exc)
 
             if len(items) < 3 and resp1.get("browserHtml"):
-                fallback_items = extract_items_from_html(resp1.get("browserHtml", ""), current_url)
+                fallback_items = extract_items_from_html(
+                    resp1.get("browserHtml", ""), current_url
+                )
                 if fallback_items:
                     items = fallback_items
-                    page_result["extraction_method"] = "browserHtml + domain HTML parsing"
+                    page_result["extraction_method"] = (
+                        "browserHtml + domain HTML parsing"
+                    )
             elif len(items) < 3:
                 try:
                     payload2 = {"url": current_url, "browserHtml": True}
@@ -174,10 +185,14 @@ def zyte_extract(args: dict, **kwargs) -> str:
 
                     resp2 = _zyte_get(client, payload2)
                     resp1 = {**resp1, **resp2}
-                    fallback_items = extract_items_from_html(resp2.get("browserHtml", ""), current_url)
+                    fallback_items = extract_items_from_html(
+                        resp2.get("browserHtml", ""), current_url
+                    )
                     if fallback_items:
                         items = fallback_items
-                        page_result["extraction_method"] = "browserHtml + domain HTML parsing"
+                        page_result["extraction_method"] = (
+                            "browserHtml + domain HTML parsing"
+                        )
                         total_cost_estimate += 0.01
                 except Exception as exc:
                     page_result["fallback_error"] = str(exc)
@@ -223,23 +238,21 @@ def zyte_extract(args: dict, **kwargs) -> str:
                 "Last page returned zero items — pagination likely ended or site structure changed."
             )
 
-        return json.dumps(
-            {
-                "success": True,
-                "pages_scraped": len(results),
-                "total_items": sum(r["item_count"] for r in results),
-                "quality_score": round(quality_score, 2),
-                "cost_estimate": (
-                    f"~${round(total_cost_estimate, 3)} "
-                    "(Zyte charges only for successful responses)"
-                ),
-                "extract_from_used": extract_from,
-                "schema_used": schema,
-                "auto_schema": auto_schema,
-                "recommendations": recommendations,
-                "results": results,
-            }
-        )
+        return json.dumps({
+            "success": True,
+            "pages_scraped": len(results),
+            "total_items": sum(r["item_count"] for r in results),
+            "quality_score": round(quality_score, 2),
+            "cost_estimate": (
+                f"~${round(total_cost_estimate, 3)} "
+                "(Zyte charges only for successful responses)"
+            ),
+            "extract_from_used": extract_from,
+            "schema_used": schema,
+            "auto_schema": auto_schema,
+            "recommendations": recommendations,
+            "results": results,
+        })
     except Exception as exc:
         return json.dumps({"success": False, "error": str(exc)})
 
@@ -281,25 +294,29 @@ def zyte_build_spider(args: dict, **kwargs) -> str:
     if not description:
         return json.dumps({"success": False, "error": "description is required"})
     if not start_url:
-        return json.dumps(
-            {
-                "success": False,
-                "error": (
-                    "start_url is required. Example: "
-                    "'https://example.com/products' or "
-                    "'https://www.zillow.com/homes/for_sale/'"
-                ),
-            }
-        )
+        return json.dumps({
+            "success": False,
+            "error": (
+                "start_url is required. Example: "
+                "'https://example.com/products' or "
+                "'https://www.zillow.com/homes/for_sale/'"
+            ),
+        })
 
     try:
         project_name = _slugify(custom_name or description)
         fields = _extract_fields(description)
 
         domain_type = "general"
-        if any(x in description.lower() for x in ["real estate", "zillow", "homes", "property"]):
+        if any(
+            x in description.lower()
+            for x in ["real estate", "zillow", "homes", "property"]
+        ):
             domain_type = "real_estate"
-        elif any(x in description.lower() for x in ["amazon", "product", "e-commerce", "shop"]):
+        elif any(
+            x in description.lower()
+            for x in ["amazon", "product", "e-commerce", "shop"]
+        ):
             domain_type = "ecommerce"
         elif any(x in description.lower() for x in ["job", "indeed", "career"]):
             domain_type = "jobs"
@@ -318,15 +335,13 @@ def zyte_build_spider(args: dict, **kwargs) -> str:
         base_dir = Path.home() / ".hermes" / "spiders" / project_name
         if base_dir.exists():
             if not overwrite:
-                return json.dumps(
-                    {
-                        "success": False,
-                        "error": (
-                            f"Project directory already exists at {base_dir}. "
-                            "Set overwrite=true to regenerate."
-                        ),
-                    }
-                )
+                return json.dumps({
+                    "success": False,
+                    "error": (
+                        f"Project directory already exists at {base_dir}. "
+                        "Set overwrite=true to regenerate."
+                    ),
+                })
             shutil.rmtree(base_dir)
 
         base_dir.mkdir(parents=True, exist_ok=True)
@@ -376,30 +391,38 @@ LOG_LEVEL = "INFO"
 '''
         (base_dir / project_name / "settings.py").write_text(settings_content)
 
-        base_item_name = project_name.replace("-", "_").title().replace("_", "") + "Item"
+        base_item_name = (
+            project_name.replace("-", "_").title().replace("_", "") + "Item"
+        )
         if is_complex_job:
-            items_content = f'''import scrapy
+            items_content = f"""import scrapy
 
 class {base_item_name}(scrapy.Item):
     name = scrapy.Field()
     url = scrapy.Field()
     source_spider = scrapy.Field()
     scraped_at = scrapy.Field()
-'''
+"""
         else:
             items_content = (
-                f'import scrapy\n\nclass {base_item_name}(scrapy.Item):\n'
+                f"import scrapy\n\nclass {base_item_name}(scrapy.Item):\n"
                 f'    """Auto-generated item for: {description[:80]}"""\n'
             )
             for field in fields:
                 items_content += f"    {field} = scrapy.Field()\n"
-            items_content += "    url = scrapy.Field()\n    scraped_at = scrapy.Field()\n"
+            items_content += (
+                "    url = scrapy.Field()\n    scraped_at = scrapy.Field()\n"
+            )
 
         (base_dir / project_name / "items.py").write_text(items_content)
 
-        spider_class = project_name.replace("-", "_").title().replace("_", "") + "Spider"
+        spider_class = (
+            project_name.replace("-", "_").title().replace("_", "") + "Spider"
+        )
         item_class = spider_class.replace("Spider", "Item")
-        template_path = Path(__file__).parent / "templates" / "high_quality_spider.py.template"
+        template_path = (
+            Path(__file__).parent / "templates" / "high_quality_spider.py.template"
+        )
 
         if template_path.exists():
             spider_code = template_path.read_text()
@@ -470,24 +493,22 @@ Fields: {", ".join(fields)}
             "scrapy>=2.11\nscrapy-zyte-api>=0.8\nzyte-api>=1.0\nrequests>=2.28\nshub>=2.12\n"
         )
 
-        return json.dumps(
-            {
-                "success": True,
-                "project_name": project_name,
-                "project_path": str(base_dir),
-                "start_url": start_url,
-                "extracted_fields": fields,
-                "estimated_cost_per_run": "~$0.02-0.15 depending on page count and extractFrom",
-                "message": f"Scrapy + Zyte project created at {base_dir}",
-                "next_steps": [
-                    f"Run locally: cd {base_dir} && scrapy crawl {project_name}",
-                    f"Deploy: zyte_deploy project_path='{base_dir}'",
-                    (
-                        f"Schedule: zyte_schedule project_id='{project_name}' "
-                        f"spider='{project_name}'"
-                    ),
-                ],
-            }
-        )
+        return json.dumps({
+            "success": True,
+            "project_name": project_name,
+            "project_path": str(base_dir),
+            "start_url": start_url,
+            "extracted_fields": fields,
+            "estimated_cost_per_run": "~$0.02-0.15 depending on page count and extractFrom",
+            "message": f"Scrapy + Zyte project created at {base_dir}",
+            "next_steps": [
+                f"Run locally: cd {base_dir} && scrapy crawl {project_name}",
+                f"Deploy: zyte_deploy project_path='{base_dir}'",
+                (
+                    f"Schedule: zyte_schedule project_id='{project_name}' "
+                    f"spider='{project_name}'"
+                ),
+            ],
+        })
     except Exception as exc:
         return json.dumps({"success": False, "error": str(exc)})
