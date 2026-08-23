@@ -61,7 +61,9 @@ class TestPaginationHelpers(unittest.TestCase):
     def test_finds_books_next_page(self):
         html = '<li class="next"><a href="catalogue/page-2.html">next</a></li>'
         resp = {"browserHtml": html}
-        next_url = tools._find_next_page_in_response(resp, "https://books.toscrape.com/")
+        next_url = tools._find_next_page_in_response(
+            resp, "https://books.toscrape.com/"
+        )
         self.assertEqual(next_url, "catalogue/page-2.html")
 
     def test_skips_backward_page_links(self):
@@ -91,18 +93,18 @@ class TestZyteBuildSpider(unittest.TestCase):
             tmp_path = Path(tmp)
             with patch.object(tools.Path, "home", return_value=tmp_path):
                 result = json.loads(
-                    tools.zyte_build_spider(
-                        {
-                            "description": "Extract product name and price from listings",
-                            "start_url": "https://example.com/products",
-                            "spider_name": "example-products",
-                            "overwrite": True,
-                        }
-                    )
+                    tools.zyte_build_spider({
+                        "description": "Extract product name and price from listings",
+                        "start_url": "https://example.com/products",
+                        "spider_name": "example-products",
+                        "overwrite": True,
+                    })
                 )
                 self.assertTrue(result["success"])
                 project_path = Path(result["project_path"])
-                self.assertTrue((project_path / "example-products/spiders/__init__.py").exists())
+                self.assertTrue(
+                    (project_path / "example-products/spiders/__init__.py").exists()
+                )
 
 
 class TestOperations(unittest.TestCase):
@@ -135,7 +137,11 @@ class TestOperations(unittest.TestCase):
         with patch.object(client, "_request") as mock_req:
             mock_req.return_value = MagicMock(
                 status_code=200,
-                json=lambda: {"status": "ok", "jobs": [{"id": "867424/1/1"}], "count": 1},
+                json=lambda: {
+                    "status": "ok",
+                    "jobs": [{"id": "867424/1/1"}],
+                    "count": 1,
+                },
             )
             jobs = client.list_jobs("867424", spider="zillowseattle")
             mock_req.assert_called_once()

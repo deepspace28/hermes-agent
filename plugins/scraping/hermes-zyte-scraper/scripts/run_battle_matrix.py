@@ -13,7 +13,10 @@ sys.path.insert(0, str(PLUGIN_ROOT))
 from tools import zyte_extract  # noqa: E402
 
 TESTS = [
-    {"name": "books.toscrape.com", "args": {"url": "https://books.toscrape.com/", "max_pages": 5}},
+    {
+        "name": "books.toscrape.com",
+        "args": {"url": "https://books.toscrape.com/", "max_pages": 5},
+    },
     {
         "name": "indeed_jobs_seattle",
         "args": {
@@ -23,9 +26,15 @@ TESTS = [
     },
     {
         "name": "zillow_seattle",
-        "args": {"url": "https://www.zillow.com/homes/for_sale/Seattle-WA/", "max_pages": 3},
+        "args": {
+            "url": "https://www.zillow.com/homes/for_sale/Seattle-WA/",
+            "max_pages": 3,
+        },
     },
-    {"name": "amazon_search", "args": {"url": "https://www.amazon.com/s?k=laptop", "max_pages": 2}},
+    {
+        "name": "amazon_search",
+        "args": {"url": "https://www.amazon.com/s?k=laptop", "max_pages": 2},
+    },
 ]
 
 EXPECTED_PATH = PLUGIN_ROOT / "tests/fixtures/battle_matrix_expected.json"
@@ -34,7 +43,11 @@ EXPECTED_PATH = PLUGIN_ROOT / "tests/fixtures/battle_matrix_expected.json"
 def main() -> int:
     expected = json.loads(EXPECTED_PATH.read_text())
     minimums = expected["minimum_pass"]
-    report = {"timestamp": datetime.now(timezone.utc).isoformat(), "tests": [], "passed": True}
+    report = {
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "tests": [],
+        "passed": True,
+    }
 
     for test in TESTS:
         name = test["name"]

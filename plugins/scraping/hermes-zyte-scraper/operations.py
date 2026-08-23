@@ -29,7 +29,9 @@ class ScrapyCloudClient:
     API_BASE = "https://app.zyte.com/api"
     STORAGE_BASE = "https://storage.zyte.com"
 
-    def __init__(self, api_key: str | None = None, timeout: int = 60, dry_run: bool = False):
+    def __init__(
+        self, api_key: str | None = None, timeout: int = 60, dry_run: bool = False
+    ):
         self.api_key = api_key or os.getenv("SCRAPY_CLOUD_API_KEY")
         if not self.api_key:
             raise ScrapyCloudError(
@@ -58,14 +60,12 @@ class ScrapyCloudClient:
                 (object,),
                 {
                     "status_code": 200,
-                    "text": json.dumps(
-                        {
-                            "status": "ok",
-                            "jobid": "867424/1/99",
-                            "jobs": [],
-                            "count": 0,
-                        }
-                    ),
+                    "text": json.dumps({
+                        "status": "ok",
+                        "jobid": "867424/1/99",
+                        "jobs": [],
+                        "count": 0,
+                    }),
                     "json": lambda self=None, **kw: json.loads(
                         '{"status":"ok","jobid":"867424/1/99","jobs":[],"count":0}'
                     ),
@@ -100,7 +100,9 @@ class ScrapyCloudClient:
                         f"Network error after {max_retries} attempts: {exc}"
                     ) from exc
                 wait_time = (2**attempt) + random.random()
-                print(f"[ScrapyCloud] Network error — retrying in {wait_time:.2f}s: {exc}")
+                print(
+                    f"[ScrapyCloud] Network error — retrying in {wait_time:.2f}s: {exc}"
+                )
                 time.sleep(wait_time)
 
         raise ScrapyCloudError("Request failed after retries")
@@ -119,7 +121,9 @@ class ScrapyCloudClient:
             f"in ~/.hermes/.env or pass the numeric project ID (e.g. 867424)."
         )
 
-    def deploy(self, project_path: str, project_name: str | None = None) -> dict[str, Any]:
+    def deploy(
+        self, project_path: str, project_name: str | None = None
+    ) -> dict[str, Any]:
         """Deploy a local Scrapy project to Scrapy Cloud via shub."""
         path = Path(project_path).expanduser().resolve()
         if not path.exists():
@@ -190,9 +194,7 @@ class ScrapyCloudClient:
                 payload["job_settings"] = json.dumps(job_settings)
             if tags:
                 payload["add_tag"] = tags[0] if isinstance(tags, list) else tags
-            resp = self._request(
-                "POST", self.API_BASE, "/schedules.json", data=payload
-            )
+            resp = self._request("POST", self.API_BASE, "/schedules.json", data=payload)
             return resp.json()
 
         data: dict[str, Any] = {
@@ -254,7 +256,9 @@ class ScrapyCloudClient:
         if offset > 0:
             params["start"] = offset
 
-        resp = self._request("GET", self.STORAGE_BASE, f"/items/{job_id}", params=params)
+        resp = self._request(
+            "GET", self.STORAGE_BASE, f"/items/{job_id}", params=params
+        )
 
         if api_fmt == "jl":
             lines = [line for line in resp.text.strip().split("\n") if line.strip()]
@@ -297,7 +301,11 @@ def zyte_schedule(args: dict, **kwargs) -> str:
             job_settings=args.get("job_settings"),
             priority=args.get("priority", 2),
         )
-        return json.dumps({"success": True, "data": result, "job_id": result.get("jobid")})
+        return json.dumps({
+            "success": True,
+            "data": result,
+            "job_id": result.get("jobid"),
+        })
     except Exception as exc:
         return json.dumps({"success": False, "error": str(exc)})
 
